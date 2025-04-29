@@ -1,70 +1,90 @@
-# Getting Started with Create React App
+# Job Application Manager
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A React application for managing jobs and job applications using SQL stored procedures.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **Job Management**: Create, view, edit, and delete job listings
+- **Application Management**: Submit, update, and track job applications
 
-### `npm start`
+## Prerequisites
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- Node.js and npm
+- SQL Server (or another SQL database) with the provided stored procedures installed
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Project Setup
 
-### `npm test`
+1. Clone this repository
+2. Install dependencies:
+   ```
+   cd job-application-manager
+   npm install
+   ```
+3. Configure the backend:
+   - The application expects a backend API running at `http://localhost:5000/api`
+   - Make sure to implement a backend API that connects to the SQL database and uses the stored procedures in the HCSDL_1.2.1.sql file
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Running the Application
 
-### `npm run build`
+Start the development server:
+```
+npm start
+```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+The application will be available at http://localhost:3000
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+## Project Structure
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+```
+job-application-manager/
+│
+├── public/                 # Static files
+├── src/                    # Source code
+│   ├── components/         # React components
+│   │   ├── job/            # Job-related components
+│   │   │   ├── JobList.js
+│   │   │   ├── JobForm.js
+│   │   │   └── JobDetail.js
+│   │   │
+│   │   └── application/    # Application-related components
+│   │       ├── ApplicationList.js
+│   │       ├── ApplicationForm.js
+│   │       └── ApplicationDetail.js
+│   │
+│   ├── services/           # API services
+│   │   └── api.js          # API calls to the backend
+│   │
+│   ├── App.js              # Main App component with routing
+│   └── index.js            # Entry point
+│
+└── package.json            # Dependencies and scripts
+```
 
-### `npm run eject`
+## Backend Implementation
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+The front-end expects the following API endpoints:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Jobs
+- GET `/api/jobs` - Get all jobs
+- GET `/api/jobs/:id` - Get job by ID
+- POST `/api/jobs` - Create a new job
+- PUT `/api/jobs/:id` - Update a job
+- DELETE `/api/jobs/:id` - Delete a job
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+### Applications
+- GET `/api/applications` - Get all applications
+- GET `/api/applications/:candidateId/:jobId` - Get application by candidate and job IDs
+- POST `/api/applications` - Create a new application
+- PUT `/api/applications/:candidateId/:jobId` - Update an application
+- DELETE `/api/applications/:candidateId/:jobId` - Delete an application
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+## Stored Procedures
 
-## Learn More
+This application uses the following SQL stored procedures:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-### Code Splitting
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+- `InsertJob` - Add a new job
+- `UpdateJob` - Update an existing job
+- `DeleteJob` - Delete a job
+- `InsertApplication` - Submit a new job application
+- `UpdateApplication` - Update an existing application
+- `DeleteApplication` - Delete an application
