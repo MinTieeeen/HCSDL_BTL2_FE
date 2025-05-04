@@ -1,58 +1,67 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Button, Container, Row, Col, Alert } from 'react-bootstrap';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Form, Button, Container, Row, Col, Alert, Card, Breadcrumb } from 'react-bootstrap';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { candidateService, jobService } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
+import { FaFileAlt, FaPaperPlane, FaUser, FaBriefcase } from 'react-icons/fa';
 
 const ApplicationForm = () => {
-  const { candidateId, jobId } = useParams();
+  const { jobId } = useParams();
   const navigate = useNavigate();
-  const isEditMode = !!(candidateId && jobId);
-
+  const { currentUser } = useAuth();
+  const candidateId = currentUser?.id;
+  
   const [formData, setFormData] = useState({
-    CandidateID: 1, // Default value, in a real app this would come from user context
-    JobID: '',
-    CoverLetter: '',
-    UploadCV: '' // In a real app, this would be file handling logic
+    candidateId: candidateId || '',
+    jobId: jobId || '',
+    coverLetter: '',
+    cvLink: '',
+    skills: '',
+    experience: '',
+    education: '',
+    expectedSalary: ''
   });
 
   // Add field-specific validation errors
   const [fieldErrors, setFieldErrors] = useState({
-    CandidateID: '',
-    JobID: '',
-    CoverLetter: '',
-    UploadCV: ''
+    candidateId: '',
+    jobId: '',
+    coverLetter: '',
+    cvLink: '',
+    skills: '',
+    experience: ''
   });
 
-  const [jobs, setJobs] = useState([]);
+  const [job, setJob] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   useEffect(() => {
-    fetchJobs();
+    if (jobId) {
+      fetchJobDetails();
+    }
     
-    if (isEditMode) {
-      fetchApplicationDetails();
+    if (candidateId) {
+      setFormData(prev => ({
+        ...prev,
+        candidateId
+      }));
     }
-  }, [candidateId, jobId]);
+  }, [jobId, candidateId]);
 
-  const fetchJobs = async () => {
-    try {
-      const response = await jobService.getAllJobs();
-      setJobs(response.data);
-    } catch (err) {
-      setError('Failed to fetch available jobs. Please try again later.');
-      console.error('Error fetching jobs:', err);
-    }
-  };
-
-  const fetchApplicationDetails = async () => {
+  const fetchJobDetails = async () => {
     try {
       setLoading(true);
-      const response = await candidateService.getApplicationById(candidateId, jobId);
-      setFormData(response.data);
+      const response = await jobService.getJobById(jobId);
+      setJob(response.data);
+      setFormData(prev => ({
+        ...prev,
+        jobId: Number(jobId)
+      }));
     } catch (err) {
-      setError('Failed to fetch application details. Please try again.');
-      console.error('Error fetching application details:', err);
+      setError('Không thể tải thông tin công việc. Vui lòng thử lại.');
+      console.error('Error fetching job details:', err);
     } finally {
       setLoading(false);
     }
@@ -63,28 +72,36 @@ const ApplicationForm = () => {
     let errorMessage = '';
 
     switch (name) {
-      case 'CandidateID':
+      case 'candidateId':
         if (!value) {
-          errorMessage = 'Candidate ID is required';
-        } else if (value <= 0) {
-          errorMessage = 'Candidate ID must be a positive number';
+          errorMessage = 'ID ứng viên là bắt buộc';
         }
         break;
-      case 'JobID':
+      case 'jobId':
         if (!value) {
-          errorMessage = 'Please select a job';
+          errorMessage = 'Vui lòng chọn công việc';
         }
         break;
-      case 'CoverLetter':
-        // Optional, but if provided should have some minimum length
-        if (value && value.trim().length < 10) {
-          errorMessage = 'Cover letter should be at least 10 characters';
+      case 'coverLetter':
+        if (!value || value.trim().length < 10) {
+          errorMessage = 'Thư xin việc cần ít nhất 10 ký tự';
         }
         break;
-      case 'UploadCV':
-        // Optional, but if provided should have a valid URL format
-        if (value && !isValidUrl(value)) {
-          errorMessage = 'Please enter a valid URL for CV';
+      case 'cvLink':
+        if (!value) {
+          errorMessage = 'Vui lòng nhập đường dẫn CV của bạn';
+        } else if (!isValidUrl(value)) {
+          errorMessage = 'Vui lòng nhập đường dẫn hợp lệ';
+        }
+        break;
+      case 'skills':
+        if (!value || value.trim().length < 5) {
+          errorMessage = 'Vui lòng liệt kê ít nhất một vài kỹ năng';
+        }
+        break;
+      case 'experience':
+        if (!value || value.trim().length < 10) {
+          errorMessage = 'Vui lòng nhập thông tin kinh nghiệm của bạn';
         }
         break;
       default:
@@ -107,10 +124,15 @@ const ApplicationForm = () => {
   const handleChange = (e) => {
     const { name, value } = e.target;
     
-    if (name === 'JobID') {
+    if (name === 'jobId') {
       setFormData({ ...formData, [name]: Number(value) });
-    } else if (name === 'CandidateID') {
+    } else if (name === 'candidateId') {
       setFormData({ ...formData, [name]: Number(value) });
+    } else if (name === 'expectedSalary') {
+      // Allow only numbers
+      if (/^\d*$/.test(value)) {
+        setFormData({ ...formData, [name]: value });
+      }
     } else {
       setFormData({ ...formData, [name]: value });
     }
@@ -137,21 +159,21 @@ const ApplicationForm = () => {
     let isValid = true;
     let newFieldErrors = { ...fieldErrors };
     
-    // Validate all fields
-    Object.keys(formData).forEach(key => {
-      if (['CandidateID', 'JobID', 'CoverLetter', 'UploadCV'].includes(key)) {
-        const errorMessage = validateField(key, formData[key]);
-        newFieldErrors[key] = errorMessage;
-        if (errorMessage) {
-          isValid = false;
-        }
+    // Validate all required fields
+    const requiredFields = ['candidateId', 'jobId', 'coverLetter', 'cvLink', 'skills', 'experience'];
+    
+    requiredFields.forEach(key => {
+      const errorMessage = validateField(key, formData[key]);
+      newFieldErrors[key] = errorMessage;
+      if (errorMessage) {
+        isValid = false;
       }
     });
     
     setFieldErrors(newFieldErrors);
     
     if (!isValid) {
-      setError('Please correct the errors in the form before submitting.');
+      setError('Vui lòng sửa lỗi trong biểu mẫu trước khi gửi.');
       return false;
     }
     
@@ -169,18 +191,16 @@ const ApplicationForm = () => {
     try {
       setLoading(true);
       
-      if (isEditMode) {
-        await candidateService.updateApplication(candidateId, jobId, formData);
-        alert('Application updated successfully!');
-      } else {
-        await candidateService.createApplication(formData);
-        alert('Application submitted successfully!');
-      }
+      await candidateService.createApplication(formData);
+      setSuccessMessage('Đơn ứng tuyển đã được gửi thành công!');
       
-      navigate('/applications');
+      // Clear success message after 3 seconds and navigate
+      setTimeout(() => {
+        navigate('/applications');
+      }, 3000);
     } catch (err) {
-      setError(`Failed to ${isEditMode ? 'update' : 'submit'} application. Please check your input and try again.`);
-      console.error(`Error ${isEditMode ? 'updating' : 'submitting'} application:`, err);
+      setError('Không thể gửi đơn ứng tuyển. Vui lòng kiểm tra thông tin và thử lại.');
+      console.error('Error submitting application:', err);
     } finally {
       setLoading(false);
     }
@@ -188,119 +208,230 @@ const ApplicationForm = () => {
 
   return (
     <Container className="mt-4">
-      <Row className="mb-3">
-        <Col>
-          <h2>{isEditMode ? 'Edit Application' : 'Submit New Application'}</h2>
-        </Col>
-      </Row>
+      <Breadcrumb className="mb-4">
+        <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/" }}>Trang chủ</Breadcrumb.Item>
+        <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/jobs" }}>Công việc</Breadcrumb.Item>
+        {job && (
+          <Breadcrumb.Item linkAs={Link} linkProps={{ to: `/jobs/view/${jobId}` }}>
+            {job.JobName}
+          </Breadcrumb.Item>
+        )}
+        <Breadcrumb.Item active>Ứng tuyển</Breadcrumb.Item>
+      </Breadcrumb>
 
-      {error && <Alert variant="danger">{error}</Alert>}
+      <Card className="border-0 shadow-sm">
+        <Card.Body>
+          <Row className="mb-4">
+            <Col>
+              <h2 className="mb-4">
+                <FaPaperPlane className="me-2 text-primary" />
+                Gửi đơn ứng tuyển
+              </h2>
+              {job && (
+                <Alert variant="info">
+                  <strong>Công việc:</strong> {job.JobName} {job.location && `(${job.location})`}
+                </Alert>
+              )}
+            </Col>
+          </Row>
 
-      <Form onSubmit={handleSubmit}>
-        <Row>
-          <Col md={12}>
-            <Form.Group className="mb-3">
-              <Form.Label>Candidate ID</Form.Label>
-              <Form.Control
-                type="number"
-                name="CandidateID"
-                value={formData.CandidateID}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                isInvalid={!!fieldErrors.CandidateID}
-                required
-                disabled={isEditMode}
-              />
-              <Form.Control.Feedback type="invalid">
-                {fieldErrors.CandidateID}
-              </Form.Control.Feedback>
-              <Form.Text className="text-muted">
-                This would typically be handled by user authentication in a real app
-              </Form.Text>
-            </Form.Group>
-          </Col>
-        </Row>
+          {error && <Alert variant="danger">{error}</Alert>}
+          {successMessage && <Alert variant="success">{successMessage}</Alert>}
 
-        <Row>
-          <Col md={12}>
-            <Form.Group className="mb-3">
-              <Form.Label>Select Job</Form.Label>
-              <Form.Select
-                name="JobID"
-                value={formData.JobID}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                isInvalid={!!fieldErrors.JobID}
-                required
-                disabled={isEditMode}
+          <Form onSubmit={handleSubmit}>
+            <Card className="mb-4 border-0 shadow-sm">
+              <Card.Header className="bg-primary text-white">
+                <h5 className="mb-0">
+                  <FaUser className="me-2" />
+                  Thông tin cá nhân
+                </h5>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Họ và tên</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="fullName"
+                        value={currentUser?.fullName || ""}
+                        disabled
+                      />
+                      <Form.Text className="text-muted">
+                        Thông tin này được lấy từ tài khoản của bạn
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Email</Form.Label>
+                      <Form.Control
+                        type="email"
+                        name="email"
+                        value={currentUser?.email || ""}
+                        disabled
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+
+            <Card className="mb-4 border-0 shadow-sm">
+              <Card.Header className="bg-primary text-white">
+                <h5 className="mb-0">
+                  <FaBriefcase className="me-2" />
+                  Thông tin ứng tuyển
+                </h5>
+              </Card.Header>
+              <Card.Body>
+                <Row>
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Đường dẫn đến CV của bạn</Form.Label>
+                      <Form.Control
+                        type="url"
+                        name="cvLink"
+                        value={formData.cvLink}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        isInvalid={!!fieldErrors.cvLink}
+                        placeholder="https://example.com/your-cv.pdf"
+                        required
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {fieldErrors.cvLink}
+                      </Form.Control.Feedback>
+                      <Form.Text className="text-muted">
+                        Nhập URL tới CV của bạn (Google Drive, Dropbox, OneDrive,...)
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Các kỹ năng của bạn</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="skills"
+                        value={formData.skills}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        isInvalid={!!fieldErrors.skills}
+                        placeholder="Ví dụ: Java, SQL, Spring Boot, React,..."
+                        required
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {fieldErrors.skills}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Kinh nghiệm làm việc</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={3}
+                        name="experience"
+                        value={formData.experience}
+                        onChange={handleChange}
+                        onBlur={handleBlur}
+                        isInvalid={!!fieldErrors.experience}
+                        placeholder="Mô tả ngắn gọn kinh nghiệm làm việc của bạn"
+                        required
+                      />
+                      <Form.Control.Feedback type="invalid">
+                        {fieldErrors.experience}
+                      </Form.Control.Feedback>
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={12}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Học vấn</Form.Label>
+                      <Form.Control
+                        as="textarea"
+                        rows={2}
+                        name="education"
+                        value={formData.education}
+                        onChange={handleChange}
+                        placeholder="Ví dụ: Đại học Bách Khoa Hà Nội, Ngành Công nghệ thông tin, 2019-2023"
+                      />
+                    </Form.Group>
+                  </Col>
+                </Row>
+
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-3">
+                      <Form.Label>Mức lương mong muốn (VND)</Form.Label>
+                      <Form.Control
+                        type="text"
+                        name="expectedSalary"
+                        value={formData.expectedSalary}
+                        onChange={handleChange}
+                        placeholder="Ví dụ: 15000000"
+                      />
+                      <Form.Text className="text-muted">
+                        Nhập số tiền, không cần dấu phẩy hay dấu chấm
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+              </Card.Body>
+            </Card>
+
+            <Card className="mb-4 border-0 shadow-sm">
+              <Card.Header className="bg-primary text-white">
+                <h5 className="mb-0">
+                  <FaFileAlt className="me-2" />
+                  Thư xin việc
+                </h5>
+              </Card.Header>
+              <Card.Body>
+                <Form.Group className="mb-3">
+                  <Form.Control
+                    as="textarea"
+                    rows={6}
+                    name="coverLetter"
+                    value={formData.coverLetter}
+                    onChange={handleChange}
+                    onBlur={handleBlur}
+                    isInvalid={!!fieldErrors.coverLetter}
+                    placeholder="Viết thư xin việc của bạn tại đây..."
+                    required
+                  />
+                  <Form.Control.Feedback type="invalid">
+                    {fieldErrors.coverLetter}
+                  </Form.Control.Feedback>
+                </Form.Group>
+              </Card.Body>
+            </Card>
+
+            <div className="d-grid gap-2 d-md-flex justify-content-md-end">
+              <Button variant="secondary" onClick={() => navigate(-1)} className="me-md-2">
+                Hủy
+              </Button>
+              <Button 
+                variant="primary" 
+                type="submit" 
+                disabled={loading}
+                className="d-flex align-items-center"
               >
-                <option value="">-- Select a Job --</option>
-                {jobs.map((job) => (
-                  <option key={job.JobID} value={job.JobID}>
-                    {job.JobName} - {job.JobType} ({job.Location})
-                  </option>
-                ))}
-              </Form.Select>
-              <Form.Control.Feedback type="invalid">
-                {fieldErrors.JobID}
-              </Form.Control.Feedback>
-            </Form.Group>
-          </Col>
-        </Row>
-
-        <Row>
-          <Col md={12}>
-            <Form.Group className="mb-3">
-              <Form.Label>Cover Letter</Form.Label>
-              <Form.Control
-                as="textarea"
-                name="CoverLetter"
-                value={formData.CoverLetter || ''}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                isInvalid={!!fieldErrors.CoverLetter}
-                rows={7}
-                placeholder="Write a cover letter explaining why you are a good fit for this position..."
-              />
-              <Form.Control.Feedback type="invalid">
-                {fieldErrors.CoverLetter}
-              </Form.Control.Feedback>
-            </Form.Group>
-          </Col>
-        </Row>
-
-        <Row>
-          <Col md={12}>
-            <Form.Group className="mb-3">
-              <Form.Label>Upload CV (URL)</Form.Label>
-              <Form.Control
-                type="text"
-                name="UploadCV"
-                value={formData.UploadCV || ''}
-                onChange={handleChange}
-                onBlur={handleBlur}
-                isInvalid={!!fieldErrors.UploadCV}
-                placeholder="In a real app, this would be a file upload component"
-              />
-              <Form.Control.Feedback type="invalid">
-                {fieldErrors.UploadCV}
-              </Form.Control.Feedback>
-              <Form.Text className="text-muted">
-                Enter a URL to your CV. In a real application, this would be a file upload.
-              </Form.Text>
-            </Form.Group>
-          </Col>
-        </Row>
-
-        <div className="d-flex justify-content-between mt-4">
-          <Button variant="secondary" onClick={() => navigate('/applications')}>
-            Cancel
-          </Button>
-          <Button variant="primary" type="submit" disabled={loading}>
-            {loading ? 'Saving...' : (isEditMode ? 'Update Application' : 'Submit Application')}
-          </Button>
-        </div>
-      </Form>
+                <FaPaperPlane className="me-2" />
+                {loading ? 'Đang gửi...' : 'Gửi đơn ứng tuyển'}
+              </Button>
+            </div>
+          </Form>
+        </Card.Body>
+      </Card>
     </Container>
   );
 };
