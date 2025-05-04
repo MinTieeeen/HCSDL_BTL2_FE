@@ -94,21 +94,6 @@ const JobDetail = () => {
               <span className="text-white">Ngày đăng: {formatDate(job.postDate)}</span>
             </div>
           </div>
-          <div>
-            {isEmployer && (
-              <Link to={`/employer/jobs/edit/${job.JobID}`} className="me-2">
-                <Button className="btn-job-outline">Chỉnh sửa</Button>
-              </Link>
-            )}
-            {isCandidate && job.JobStatus === 'Đang mở' && (
-              <Link to={`/applications/new/${job.JobID}`}>
-                <Button className="btn-job-secondary me-2">Ứng tuyển ngay</Button>
-              </Link>
-            )}
-            <Button variant="light" onClick={() => navigate('/jobs')}>
-              Quay lại
-            </Button>
-          </div>
         </div>
       </div>
 

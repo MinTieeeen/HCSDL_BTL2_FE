@@ -108,7 +108,39 @@ export const jobService = {
   // Get job by ID
   getJobById: async (id) => {
     try {
-      // Try server-side fetch first
+      // Check if user is authenticated and get role
+      const isAuthenticated = localStorage.getItem('token') !== null;
+      const userType = localStorage.getItem('userType');
+      
+      // If user is an employer, try to get the job from employer's jobs first
+      if (isAuthenticated && userType === 'EMPLOYER') {
+        try {
+          console.log("User is employer, trying to get job from employer's jobs");
+          // Get all employer's jobs first
+          const myJobsResponse = await employerService.getMyJobs();
+          const myJobs = myJobsResponse.data || [];
+          
+          // Find the job with matching ID
+          const job = myJobs.find(job => 
+            (job.id?.toString() === id.toString()) || 
+            (job.jobId?.toString() === id.toString())
+          );
+          
+          // If found, return it
+          if (job) {
+            console.log("Job found in employer's jobs:", job);
+            return { data: job };
+          } else {
+            console.log("Job not found in employer's jobs, will try regular API");
+          }
+        } catch (employerError) {
+          console.error("Error fetching from employer jobs:", employerError);
+          // Continue to try the regular API
+        }
+      }
+      
+      // Regular API call (will be used for non-employers or when job not found in employer's jobs)
+      console.log("Fetching job with regular API call");
       return await apiClient.get(`/jobs/${id}`);
     } catch (error) {
       // Check if user is authenticated before trying fallback
@@ -117,26 +149,7 @@ export const jobService = {
         throw new Error("Authentication required to view job details");
       }
       
-      // If we get 403, fallback to client-side search - but this is commented out for now
-      /*
-      if (error.response && error.response.status === 403) {
-        console.log("Job detail API requires authentication, falling back to client-side search");
-        const response = await apiClient.get("/jobs");
-        const job = response.data.find(job => 
-          (job.id?.toString() === id.toString()) || 
-          (job.jobId?.toString() === id.toString()) || 
-          (job.JobID?.toString() === id.toString())
-        );
-        
-        if (!job) {
-          throw new Error("Job not found");
-        }
-        
-        return { data: job };
-      }
-      */
-      
-      // Just propagate the error without fallback search
+      console.error("Error in getJobById:", error);
       throw error;
     }
   },
@@ -273,6 +286,32 @@ export const employerService = {
         console.error("Error fetching employer jobs:", error);
         return { data: [] };
       });
+  },
+
+  // Get a specific job by ID from employer's jobs
+  getMyJobById: async (id) => {
+    try {
+      // Try to get directly from backend if endpoint exists
+      return await authApiClient.get(`/employers/my-jobs/${id}`);
+    } catch (error) {
+      console.error("Error fetching specific employer job by ID:", error);
+      
+      // If direct endpoint not available, try to get all jobs and find the specific one
+      console.log("Falling back to getting all jobs and filtering for job ID:", id);
+      const response = await employerService.getMyJobs();
+      const jobs = response.data || [];
+      
+      const job = jobs.find(job => 
+        (job.id?.toString() === id.toString()) || 
+        (job.jobId?.toString() === id.toString())
+      );
+      
+      if (!job) {
+        throw new Error("Job not found or you don't have permission to access it");
+      }
+      
+      return { data: job };
+    }
   },
 
   // Get current employer's jobs by status

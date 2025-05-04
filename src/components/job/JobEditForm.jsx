@@ -41,17 +41,48 @@ const JobEditForm = () => {
   const fetchJobDetails = async () => {
     try {
       setLoading(true);
-      // Sử dụng employerService.getMyJobs() để lấy danh sách job của employer, sau đó tìm job theo id
-      // hoặc nếu backend có endpoint riêng cho employer lấy job theo id, hãy dùng endpoint đó.
-      // Nếu không, kiểm tra quyền truy cập hoặc token.
-      const response = await jobService.getJobById(id);
-      const jobData = response.data;
+      // Sử dụng employerService trực tiếp để lấy job theo id
+      // Thay vì dùng jobService.getJobById() (có thể gặp vấn đề quyền truy cập)
+      
+      // Phương pháp 1: Lấy job trực tiếp từ backend nếu có endpoint riêng
+      try {
+        // Thử gọi API trực tiếp từ employerService
+        const response = await employerService.getMyJobById(id);
+        const jobData = response.data;
+        
+        // Format expireDate for input[type="date"]
+        const expireDate = jobData.expireDate
+          ? new Date(jobData.expireDate).toISOString().split("T")[0]
+          : "";
+        
+        setFormData({
+          ...jobData,
+          expireDate,
+        });
+        return; // Thoát khỏi hàm nếu thành công
+      } catch (directError) {
+        console.log("Could not fetch job directly, trying alternative method", directError);
+      }
+      
+      // Phương pháp 2: Lấy tất cả job của employer và tìm job cần thiết
+      const response = await employerService.getMyJobs();
+      const jobs = response.data || [];
+      
+      const job = jobs.find(
+        j => (j.id?.toString() === id) || (j.jobId?.toString() === id)
+      );
+      
+      if (!job) {
+        throw new Error("Không tìm thấy công việc hoặc bạn không có quyền truy cập.");
+      }
+      
       // Format expireDate for input[type="date"]
-      const expireDate = jobData.expireDate
-        ? new Date(jobData.expireDate).toISOString().split("T")[0]
+      const expireDate = job.expireDate
+        ? new Date(job.expireDate).toISOString().split("T")[0]
         : "";
+        
       setFormData({
-        ...jobData,
+        ...job,
         expireDate,
       });
     } catch (err) {
