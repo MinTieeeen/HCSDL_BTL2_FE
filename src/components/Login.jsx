@@ -149,11 +149,7 @@ const Login = () => {
                 </div>
               </Form>
               
-              <div className="mt-4 text-center">
-                <p className="mb-0">
-                  Chưa có tài khoản? <Link to="/register" className="text-primary">Đăng ký ngay</Link>
-                </p>
-              </div>
+                    
             </Card.Body>
           </Card>
         </Col>

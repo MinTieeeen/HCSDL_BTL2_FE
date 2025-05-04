@@ -48,7 +48,10 @@ const responseInterceptor = [
           window.location.href = "/login";
           break;
         case 403:
-          console.error("Access forbidden - check your permissions");
+          console.warn("Access forbidden - authentication required or insufficient permissions");
+          // Don't redirect - just return a rejected promise with a clear message
+          error.isAuthError = true;
+          error.friendlyMessage = "Vui lòng đăng nhập để truy cập tính năng này.";
           break;
         case 404:
           console.error("Resource not found");
@@ -409,8 +412,13 @@ const clientSideJobFilter = (jobs, filters) => {
 export const searchJCByKeyword = async (keyword) => {
   const token = localStorage.getItem("token");
   if (!token) {
-    console.error("searchJCByKeyword: Không tìm thấy token trong localStorage");
-    throw new Error("Không tìm thấy token");
+    console.warn("searchJCByKeyword: Authentication required");
+    // Return empty results instead of throwing error
+    return { 
+      data: [], 
+      error: true, 
+      message: "Vui lòng đăng nhập để sử dụng chức năng tìm kiếm." 
+    };
   }
   
   const payload = {
@@ -436,8 +444,18 @@ export const searchJCByKeyword = async (keyword) => {
     // Return data in the same format as btl2-1.5b
     return { data: res.data.data || [] };
   } catch (error) {
+    // Check if it's an auth error
+    if (error.response && error.response.status === 403) {
+      console.warn("Tìm kiếm yêu cầu quyền đăng nhập");
+      return { 
+        data: [], 
+        error: true, 
+        authError: true,
+        message: "Vui lòng đăng nhập để sử dụng chức năng tìm kiếm." 
+      };
+    }
+    
     console.error("Lỗi tìm kiếm công việc:", error.message);
-    console.error("Chi tiết lỗi:", error.response?.data);
     
     // Fall back to client-side search for consistent user experience
     try {
@@ -459,7 +477,11 @@ export const searchJCByKeyword = async (keyword) => {
       return { data: filteredJobs };
     } catch (fallbackError) {
       console.error("Tìm kiếm cục bộ thất bại:", fallbackError);
-      return { data: [] };
+      return { 
+        data: [], 
+        error: true,
+        message: "Không thể tìm kiếm công việc. Vui lòng thử lại sau."
+      };
     }
   }
 };
@@ -472,3 +494,4 @@ const apiServices = {
 };
 
 export default apiServices;
+ 

@@ -72,7 +72,8 @@ const JobDetail = () => {
     );
   }
 
-  const isEmployer = isAuthenticated && currentUser?.userType === "EMPLOYER" && currentUser?.id === job.EmployerID;
+  const isEmployer = isAuthenticated && currentUser?.userType === "EMPLOYER" && 
+    (currentUser?.id === job.EmployerID || currentUser?.id === job.employerId);
   const isCandidate = isAuthenticated && currentUser?.userType === "CANDIDATE";
 
   return (
@@ -80,18 +81,18 @@ const JobDetail = () => {
       <Breadcrumb className="mb-4">
         <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/" }}>Trang chủ</Breadcrumb.Item>
         <Breadcrumb.Item linkAs={Link} linkProps={{ to: "/jobs" }}>Công việc</Breadcrumb.Item>
-        <Breadcrumb.Item active>{job.JobName}</Breadcrumb.Item>
+        <Breadcrumb.Item active>{job.JobName || job.jobName}</Breadcrumb.Item>
       </Breadcrumb>
 
       <div className="job-detail-header">
         <div className="d-flex justify-content-between align-items-center">
           <div>
-            <h2 className="mb-2 text-white">{job.JobName}</h2>
+            <h2 className="mb-2 text-white">{job.JobName || job.jobName}</h2>
             <div>
               <Badge className="filter-badge me-2">
-                {job.JobStatus === 'Đang mở' ? 'Đang mở' : 'Đã đóng'}
+                {(job.JobStatus || job.jobStatus) === 'Đang mở' ? 'Đang mở' : 'Đã đóng'}
               </Badge>
-              <span className="text-white">Ngày đăng: {formatDate(job.postDate)}</span>
+              <span className="text-white">Ngày đăng: {formatDate(job.postDate || job.PostDate)}</span>
             </div>
           </div>
         </div>
@@ -106,18 +107,10 @@ const JobDetail = () => {
             </h3>
             <div className="mb-4">
               <h5 className="text-primary">Mô tả công việc:</h5>
-              <div style={{ whiteSpace: 'pre-line' }}>{job.JD}</div>
+              <div style={{ whiteSpace: 'pre-line' }}>{job.JD || job.jobDescription || 'Không có thông tin mô tả công việc.'}</div>
             </div>
             
-            <div className="mb-4">
-              <h5 className="text-primary">Yêu cầu:</h5>
-              <div style={{ whiteSpace: 'pre-line' }}>{job.requirement || 'Không có thông tin yêu cầu.'}</div>
-            </div>
-            
-            <div className="mb-4">
-              <h5 className="text-primary">Lợi ích:</h5>
-              <div style={{ whiteSpace: 'pre-line' }}>{job.benefit || 'Không có thông tin lợi ích.'}</div>
-            </div>
+        
           </div>
         </Col>
         
@@ -190,29 +183,13 @@ const JobDetail = () => {
             </ListGroup>
           </div>
           
-          {isCandidate && job.JobStatus === 'Đang mở' && (
+          {isCandidate && (job.JobStatus === 'Đang mở' || job.jobStatus === 'Đang mở') && (
             <div className="text-center mb-4">
-              <Link to={`/applications/new/${job.JobID}`}>
+              <Link to={`/applications/new/${job.JobID || job.jobId || job.id}`}>
                 <Button className="btn-job-primary w-100 py-3">Ứng tuyển ngay</Button>
               </Link>
             </div>
           )}
-          
-          <div className="job-detail-section">
-            <h3>
-              <FaBuilding className="me-2" />
-              Thông tin nhà tuyển dụng
-            </h3>
-            <div className="mb-3">
-              <h6>Công ty:</h6>
-              <p>{job.companyName || 'Chưa có thông tin'}</p>
-            </div>
-            
-            <div className="mb-3">
-              <h6>Mã số thuế:</h6>
-              <p>{job.TaxNumber || job.taxNumber || 'Chưa có thông tin'}</p>
-            </div>
-          </div>
         </Col>
       </Row>
     </Container>

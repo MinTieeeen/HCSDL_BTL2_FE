@@ -25,6 +25,7 @@ const JobEditForm = () => {
   });
 
   const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -111,13 +112,13 @@ const JobEditForm = () => {
         if (!value.trim()) errorMessage = "Tên công việc là bắt buộc";
         break;
       case "jobType":
-        if (!value.trim()) errorMessage = "Loại công việc là bắt buộc";
+        if (!value.trim()) errorMessage = "Vui lòng chọn loại công việc";
         break;
       case "contractType":
-        if (!value.trim()) errorMessage = "Loại hợp đồng là bắt buộc";
+        if (!value.trim()) errorMessage = "Vui lòng chọn loại hợp đồng";
         break;
       case "level":
-        if (!value.trim()) errorMessage = "Cấp bậc là bắt buộc";
+        if (!value.trim()) errorMessage = "Vui lòng chọn cấp bậc";
         break;
       case "quantity":
         if (Number(value) <= 0)
@@ -141,6 +142,8 @@ const JobEditForm = () => {
         break;
       case "jobDescription":
         if (!value.trim()) errorMessage = "Mô tả công việc là bắt buộc";
+        else if (value.trim().length < 50)
+          errorMessage = "Mô tả công việc phải có ít nhất 50 ký tự";
         break;
       case "expireDate":
         const currentDate = new Date();
@@ -169,6 +172,10 @@ const JobEditForm = () => {
         ? Number(value)
         : value,
     }));
+    
+    // Đánh dấu trường đã được tương tác
+    setTouched({ ...touched, [name]: true });
+    
     setFieldErrors((prev) => ({
       ...prev,
       [name]: validateField(name, value),
@@ -177,6 +184,10 @@ const JobEditForm = () => {
 
   const handleBlur = (e) => {
     const { name, value } = e.target;
+    
+    // Đánh dấu trường đã được tương tác khi mất focus
+    setTouched({ ...touched, [name]: true });
+    
     setFieldErrors((prev) => ({
       ...prev,
       [name]: validateField(name, value),
@@ -186,12 +197,20 @@ const JobEditForm = () => {
   const validateForm = () => {
     let isValid = true;
     let newFieldErrors = {};
+    let newTouched = { ...touched };
+    
     Object.keys(formData).forEach((key) => {
+      // Đánh dấu tất cả trường là đã tương tác khi submit
+      newTouched[key] = true;
+      
       const errorMessage = validateField(key, formData[key]);
       newFieldErrors[key] = errorMessage;
       if (errorMessage) isValid = false;
     });
+    
     setFieldErrors(newFieldErrors);
+    setTouched(newTouched);
+    
     if (!isValid) {
       setError("Vui lòng sửa các lỗi trong biểu mẫu trước khi gửi.");
       return false;
@@ -253,13 +272,13 @@ const JobEditForm = () => {
                         value={formData.jobName}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        isInvalid={!!fieldErrors.jobName}
+                        isInvalid={touched.jobName && !!fieldErrors.jobName}
                         required
                       />
                     </div>
-                    <Form.Control.Feedback type="invalid">
-                      {fieldErrors.jobName}
-                    </Form.Control.Feedback>
+                    {touched.jobName && fieldErrors.jobName && (
+                      <div className="text-danger mt-1">{fieldErrors.jobName}</div>
+                    )}
                   </Form.Group>
                 </Col>
                 <Col md={6}>
@@ -272,26 +291,19 @@ const JobEditForm = () => {
                         value={formData.jobType}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        isInvalid={!!fieldErrors.jobType}
+                        isInvalid={touched.jobType && !!fieldErrors.jobType}
                         required
                       >
                         <option value="">Chọn loại công việc</option>
-                        <option value="IT_SOFTWARE">IT & Phần mềm</option>
-                        <option value="FINANCE_BANKING">Tài chính & Ngân hàng</option>
-                        <option value="MARKETING">Marketing</option>
-                        <option value="SALES">Bán hàng</option>
-                        <option value="CUSTOMER_SERVICE">Dịch vụ khách hàng</option>
-                        <option value="ADMINISTRATION">Hành chính</option>
-                        <option value="HUMAN_RESOURCES">Nhân sự</option>
-                        <option value="ACCOUNTING">Kế toán</option>
-                        <option value="ENGINEERING">Kỹ thuật</option>
-                        <option value="MANUFACTURING">Sản xuất</option>
-                        <option value="OTHER">Khác</option>
+                        <option value="On-site">On-site</option>
+                        <option value="Remote">Remote</option>
+                        <option value="Hybrid">Hybrid</option>
+                        <option value="On-board">On-board</option>
                       </Form.Select>
                     </div>
-                    <Form.Control.Feedback type="invalid">
-                      {fieldErrors.jobType}
-                    </Form.Control.Feedback>
+                    {touched.jobType && fieldErrors.jobType && (
+                      <div className="text-danger mt-1">{fieldErrors.jobType}</div>
+                    )}
                   </Form.Group>
                 </Col>
               </Row>
@@ -306,7 +318,7 @@ const JobEditForm = () => {
                         value={formData.contractType}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        isInvalid={!!fieldErrors.contractType}
+                        isInvalid={touched.contractType && !!fieldErrors.contractType}
                         required
                       >
                         <option value="">Chọn loại hợp đồng</option>
@@ -317,9 +329,9 @@ const JobEditForm = () => {
                         <option value="INTERNSHIP">Thực tập</option>
                       </Form.Select>
                     </div>
-                    <Form.Control.Feedback type="invalid">
-                      {fieldErrors.contractType}
-                    </Form.Control.Feedback>
+                    {touched.contractType && fieldErrors.contractType && (
+                      <div className="text-danger mt-1">{fieldErrors.contractType}</div>
+                    )}
                   </Form.Group>
                 </Col>
                 <Col md={6}>
@@ -332,7 +344,7 @@ const JobEditForm = () => {
                         value={formData.level}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        isInvalid={!!fieldErrors.level}
+                        isInvalid={touched.level && !!fieldErrors.level}
                         required
                       >
                         <option value="">Chọn cấp bậc</option>
@@ -346,9 +358,9 @@ const JobEditForm = () => {
                         <option value="DIRECTOR">Giám đốc</option>
                       </Form.Select>
                     </div>
-                    <Form.Control.Feedback type="invalid">
-                      {fieldErrors.level}
-                    </Form.Control.Feedback>
+                    {touched.level && fieldErrors.level && (
+                      <div className="text-danger mt-1">{fieldErrors.level}</div>
+                    )}
                   </Form.Group>
                 </Col>
               </Row>
@@ -370,14 +382,14 @@ const JobEditForm = () => {
                         value={formData.quantity}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        isInvalid={!!fieldErrors.quantity}
+                        isInvalid={touched.quantity && !!fieldErrors.quantity}
                         min="1"
                         required
                       />
                     </div>
-                    <Form.Control.Feedback type="invalid">
-                      {fieldErrors.quantity}
-                    </Form.Control.Feedback>
+                    {touched.quantity && fieldErrors.quantity && (
+                      <div className="text-danger mt-1">{fieldErrors.quantity}</div>
+                    )}
                   </Form.Group>
                 </Col>
                 <Col md={4}>
@@ -391,14 +403,14 @@ const JobEditForm = () => {
                         value={formData.salaryFrom}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        isInvalid={!!fieldErrors.salaryFrom}
+                        isInvalid={touched.salaryFrom && !!fieldErrors.salaryFrom}
                         min="0"
                         required
                       />
                     </div>
-                    <Form.Control.Feedback type="invalid">
-                      {fieldErrors.salaryFrom}
-                    </Form.Control.Feedback>
+                    {touched.salaryFrom && fieldErrors.salaryFrom && (
+                      <div className="text-danger mt-1">{fieldErrors.salaryFrom}</div>
+                    )}
                   </Form.Group>
                 </Col>
                 <Col md={4}>
@@ -412,14 +424,14 @@ const JobEditForm = () => {
                         value={formData.salaryTo}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        isInvalid={!!fieldErrors.salaryTo}
+                        isInvalid={touched.salaryTo && !!fieldErrors.salaryTo}
                         min="0"
                         required
                       />
                     </div>
-                    <Form.Control.Feedback type="invalid">
-                      {fieldErrors.salaryTo}
-                    </Form.Control.Feedback>
+                    {touched.salaryTo && fieldErrors.salaryTo && (
+                      <div className="text-danger mt-1">{fieldErrors.salaryTo}</div>
+                    )}
                   </Form.Group>
                 </Col>
               </Row>
@@ -435,14 +447,14 @@ const JobEditForm = () => {
                         value={formData.requireExpYear}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        isInvalid={!!fieldErrors.requireExpYear}
+                        isInvalid={touched.requireExpYear && !!fieldErrors.requireExpYear}
                         min="0"
                         required
                       />
                     </div>
-                    <Form.Control.Feedback type="invalid">
-                      {fieldErrors.requireExpYear}
-                    </Form.Control.Feedback>
+                    {touched.requireExpYear && fieldErrors.requireExpYear && (
+                      <div className="text-danger mt-1">{fieldErrors.requireExpYear}</div>
+                    )}
                   </Form.Group>
                 </Col>
                 <Col md={6}>
@@ -456,13 +468,13 @@ const JobEditForm = () => {
                         value={formData.location}
                         onChange={handleChange}
                         onBlur={handleBlur}
-                        isInvalid={!!fieldErrors.location}
+                        isInvalid={touched.location && !!fieldErrors.location}
                         required
                       />
                     </div>
-                    <Form.Control.Feedback type="invalid">
-                      {fieldErrors.location}
-                    </Form.Control.Feedback>
+                    {touched.location && fieldErrors.location && (
+                      <div className="text-danger mt-1">{fieldErrors.location}</div>
+                    )}
                   </Form.Group>
                 </Col>
               </Row>
@@ -480,13 +492,13 @@ const JobEditForm = () => {
                   value={formData.jobDescription}
                   onChange={handleChange}
                   onBlur={handleBlur}
-                  isInvalid={!!fieldErrors.jobDescription}
+                  isInvalid={touched.jobDescription && !!fieldErrors.jobDescription}
                   rows={5}
                   required
                 />
-                <Form.Control.Feedback type="invalid">
-                  {fieldErrors.jobDescription}
-                </Form.Control.Feedback>
+                {touched.jobDescription && fieldErrors.jobDescription && (
+                  <div className="text-danger mt-1">{fieldErrors.jobDescription}</div>
+                )}
               </Form.Group>
             </Col>
           </Row>
@@ -503,13 +515,13 @@ const JobEditForm = () => {
                     value={formData.expireDate}
                     onChange={handleChange}
                     onBlur={handleBlur}
-                    isInvalid={!!fieldErrors.expireDate}
+                    isInvalid={touched.expireDate && !!fieldErrors.expireDate}
                     required
                   />
                 </div>
-                <Form.Control.Feedback type="invalid">
-                  {fieldErrors.expireDate}
-                </Form.Control.Feedback>
+                {touched.expireDate && fieldErrors.expireDate && (
+                  <div className="text-danger mt-1">{fieldErrors.expireDate}</div>
+                )}
               </Form.Group>
             </Col>
             <Col md={6}>
