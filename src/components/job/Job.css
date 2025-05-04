@@ -163,6 +163,105 @@
   border-color: var(--primary-color);
 }
 
+/* Search Container */
+.search-bar .search-container {
+  display: flex;
+  align-items: center;
+  height: 60px;
+}
+
+.search-bar .search-dropdown {
+  flex: 1;
+}
+
+/* Job Category Dropdown styling */
+.search-bar .dropdown-toggle {
+  border-top-left-radius: 30px;
+  border-bottom-left-radius: 30px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 0.9rem 1.2rem;
+  background-color: white;
+  color: #495057;
+  text-align: left;
+  width: 100%;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s;
+  height: 60px;
+}
+
+.search-bar .dropdown-toggle:hover,
+.search-bar .dropdown-toggle:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(79, 172, 254, 0.25);
+}
+
+.search-bar .dropdown-toggle::after {
+  float: right;
+  margin-top: 8px;
+}
+
+/* Search button styling */
+.search-bar .search-button {
+  min-width: 60px;
+  width: 60px;
+  height: 60px;
+  border-radius: 0 30px 30px 0;
+  background-color: #36D7FF;
+  border: none;
+  box-shadow: 0 4px 10px rgba(54, 215, 255, 0.3);
+  transition: all 0.3s ease;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: -1px; /* Fix any gap between dropdown and button */
+}
+
+.search-bar .search-button:hover,
+.search-bar .search-button:focus {
+  background-color: #00C6FF;
+  box-shadow: 0 6px 15px rgba(54, 215, 255, 0.5);
+}
+
+.search-bar .search-button:active {
+  transform: translateY(1px);
+}
+
+.search-bar .search-button .search-icon {
+  font-size: 20px;
+  color: white;
+}
+
+.search-bar .search-button:disabled {
+  background-color: #ccc;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.search-bar .dropdown-menu {
+  width: 100%;
+  border-radius: 1rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  border: none;
+  padding: 0.5rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.search-bar .dropdown-item {
+  border-radius: 0.5rem;
+  padding: 0.7rem 1rem;
+  transition: all 0.2s;
+}
+
+.search-bar .dropdown-item:hover,
+.search-bar .dropdown-item:focus {
+  background-color: rgba(79, 172, 254, 0.1);
+  color: var(--primary-color);
+}
+
 .filter-badge {
   background-image: var(--primary-gradient);
   border-radius: 2rem;
@@ -451,4 +550,70 @@
   .search-filter-container .search-bar {
     width: 100%;
   }
+}
+
+/* Toggle switch styling */
+.custom-switch {
+  font-weight: 500;
+  margin-bottom: 0;
+  display: flex;
+  align-items: center;
+}
+
+.custom-switch .form-check-input {
+  margin-right: 8px;
+  width: 40px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.custom-switch .form-check-input:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.custom-switch .form-check-label {
+  cursor: pointer;
+  color: var(--dark-color);
+  font-size: 0.95rem;
+}
+
+/* Filter checkbox styling */
+.filter-checkbox {
+  margin-top: 10px;
+  padding-left: 5px;
+}
+
+.filter-checkbox input[type="checkbox"] {
+  margin-right: 8px;
+  width: 18px;
+  height: 18px;
+}
+
+.filter-checkbox label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--dark-color);
+  cursor: pointer;
+}
+
+/* Login required message */
+.login-required-message {
+  background-color: #f8f9fa;
+  border-radius: 10px;
+  padding: 3rem;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.login-required-message .lock-icon {
+  font-size: 3rem;
+  color: #36D7FF;
+}
+
+.login-required-message h3 {
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
 } 

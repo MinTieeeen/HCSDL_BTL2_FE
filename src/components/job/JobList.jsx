@@ -10,8 +10,8 @@ import {
   Card,
   Form,
 } from "react-bootstrap";
-import { Link, useLocation } from "react-router-dom";
-import { jobService, employerService } from "../../services/api";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { jobService, employerService, searchJCByKeyword } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { 
   FaFilter, 
@@ -25,7 +25,8 @@ import {
   FaEye,
   FaEdit,
   FaTrashAlt,
-  FaPaperPlane
+  FaPaperPlane,
+  FaLock
 } from "react-icons/fa";
 import SearchBar from "./SearchBar";
 import FilterModal from "./FilterModal";
@@ -45,12 +46,19 @@ const JobList = ({ employerOnly }) => {
   const { currentUser, isAuthenticated } = useAuth();
   const isEmployer = isAuthenticated && currentUser?.userType === "EMPLOYER";
   const location = useLocation();
+  const navigate = useNavigate();
   const isMyJobsPage = employerOnly || location.pathname.includes("/employer/jobs") || location.pathname === "/my-jobs";
 
   // Load jobs when component mounts
   useEffect(() => {
+    if (!isAuthenticated && !isMyJobsPage) {
+      // If user is not authenticated, show login message instead
+      setLoading(false);
+      return;
+    }
+    
     fetchJobs();
-  }, [isMyJobsPage, employerOnly, sortField, sortOrder]);
+  }, [isMyJobsPage, employerOnly, sortField, sortOrder, isAuthenticated]);
 
   const fetchJobs = async () => {
     try {
@@ -68,13 +76,23 @@ const JobList = ({ employerOnly }) => {
           includeAll: true // Make sure to include all job statuses
         });
       } else {
-        // Public view of all jobs
+        // Public view of all jobs is disabled - commented out getAllJobs functionality
+        /* 
         console.log("Fetching all jobs");
         response = await jobService.getAllJobs();
+        */
+        
+        // Instead, return an empty array
+        response = { data: [] };
+        
+        // If user is authenticated, show an information message
+        if (isAuthenticated) {
+          setError("Chức năng xem tất cả công việc đã bị tạm khóa. Vui lòng sử dụng tính năng tìm kiếm.");
+        }
       }
 
       // Ensure we have a response object with data property
-      const jobData = response?.data || [];
+      let jobData = response?.data || [];
       console.log(`Received ${jobData.length} jobs from API`);
       
       // Apply sorting if we have data
@@ -155,19 +173,29 @@ const JobList = ({ employerOnly }) => {
   };
 
   const handleSearch = async (keyword) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
-      console.log("Searching for keyword:", keyword);
+      console.log("Searching for JCName category:", keyword);
       
       let response;
       try {
-        if (isEmployer && isMyJobsPage) {
-          // Use getMyJobs directly with keyword parameter
-          response = await employerService.getMyJobs({ keyword });
-        } else {
-          response = await jobService.searchJobsByKeyword(keyword);
-        }
+        // Create payload for JCName search
+        const payload = {
+          action: "search",
+          jcName: keyword,
+        };
+        
+        console.log("Using searchJCByKeyword API with payload:", payload);
+        
+        // Import this function from the api.js to ensure we're using the correct implementation
+        const searchResults = await searchJCByKeyword(keyword);
+        response = searchResults;
         
         // Clear error if successful
         setError("");
@@ -175,22 +203,18 @@ const JobList = ({ employerOnly }) => {
         console.error("Search API error:", searchError);
         setError("Lỗi hệ thống: Không thể tìm kiếm từ máy chủ. Đang thử tìm kiếm cục bộ...");
         
-        // Try to fall back to client-side search
+        // Try to fall back to client-side search - commented out for now
+        /* 
         try {
           const allJobsResponse = isEmployer && isMyJobsPage
             ? await employerService.getMyJobs()
             : await jobService.getAllJobs();
             
-          // Do client-side keyword search
+          // Do client-side JCName category filtering instead of keyword search
           const allJobs = allJobsResponse.data || [];
-          const searchLower = keyword.toLowerCase();
-          const filteredJobs = allJobs.filter(job =>
-            job.jobName?.toLowerCase().includes(searchLower) ||
-            job.description?.toLowerCase().includes(searchLower) ||
-            job.level?.toLowerCase().includes(searchLower) ||
-            job.contractType?.toLowerCase().includes(searchLower) ||
-            job.location?.toLowerCase().includes(searchLower) ||
-            job.jobType?.toLowerCase().includes(searchLower)
+          const filteredJobs = allJobs.filter(job => 
+            job.jcName === keyword || 
+            job.jobCategory === keyword
           );
           
           response = { data: filteredJobs };
@@ -198,18 +222,23 @@ const JobList = ({ employerOnly }) => {
           // Update error message to show we're using client-side search
           setError("Sử dụng tìm kiếm cục bộ. Kết quả có thể không đầy đủ.");
         } catch (fallbackError) {
-          console.error("Even fallback search failed:", fallbackError);
+          console.error("Fallback search failed:", fallbackError);
           throw new Error("Không thể tìm kiếm. Vui lòng thử lại sau.");
         }
+        */
+        
+        // Instead, return an empty result
+        response = { data: [] };
+        setError("Không thể tìm kiếm. Vui lòng thử lại sau.");
       }
       
       setJobs(response.data || []);
       setTotalJobs(response.data?.length || 0);
       
-      // Update active filters
+      // Update active filters with jcName instead of keyword
       setActiveFilters({
         ...activeFilters,
-        keyword
+        jcName: keyword
       });
     } catch (err) {
       console.error("Error searching jobs:", err);
@@ -221,6 +250,11 @@ const JobList = ({ employerOnly }) => {
   };
 
   const handleFilter = async (filterParams) => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+
     try {
       setLoading(true);
       setError("");
@@ -246,6 +280,11 @@ const JobList = ({ employerOnly }) => {
         displayFilters.jcName = filterParams.jcName;
       }
       
+      // Add job status to display filters if specified
+      if (filterParams.jobStatus) {
+        displayFilters.jobStatus = filterParams.jobStatus;
+      }
+      
       setActiveFilters(displayFilters);
       
       // Make API call
@@ -255,13 +294,21 @@ const JobList = ({ employerOnly }) => {
           // Filter employer's jobs
           response = await employerService.getMyJobs(filterParams);
         } else {
-          // Filter public jobs
+          // Filter public jobs - commented out
+          /*
           response = await jobService.filterJobs(filterParams);
+          */
+          
+          // Instead, return an empty result
+          response = { data: [] };
+          setError("Chức năng lọc tất cả công việc đã bị tạm khóa.");
         }
       } catch (apiError) {
         console.error("API error during filtering:", apiError);
-        setError("Lỗi hệ thống: Không thể lọc công việc từ máy chủ. Đang cố gắng lọc dữ liệu cục bộ...");
+        setError("Lỗi hệ thống: Không thể lọc công việc từ máy chủ.");
         
+        // Client-side fallback has been commented out
+        /*
         // Try to load all jobs and filter client-side as last resort
         try {
           const allJobsResponse = isEmployer && isMyJobsPage 
@@ -273,10 +320,20 @@ const JobList = ({ employerOnly }) => {
           console.error("Even fallback job loading failed:", fallbackError);
           throw new Error("Không thể lấy dữ liệu từ máy chủ. Vui lòng thử lại sau.");
         }
+        */
+        
+        // Just use an empty array
+        response = { data: [] };
       }
       
       // Ensure we have a response object with data property
-      const jobData = response?.data || [];
+      let jobData = response?.data || [];
+      
+      // If job status filter is applied, filter client-side as well to ensure it works
+      if (filterParams.jobStatus) {
+        jobData = jobData.filter(job => job.jobStatus === filterParams.jobStatus);
+      }
+      
       console.log(`Received ${jobData.length} filtered jobs`);
       
       setJobs(jobData);
@@ -284,7 +341,9 @@ const JobList = ({ employerOnly }) => {
       setShowFilterModal(false);
       
       // Clear error if successful
-      setError("");
+      if (jobData.length > 0) {
+        setError("");
+      }
     } catch (err) {
       console.error("Error filtering jobs:", err);
       setError(err.message || "Không thể lọc danh sách công việc. Vui lòng thử lại sau.");
@@ -311,26 +370,9 @@ const JobList = ({ employerOnly }) => {
     }
     
     if (activeFilters.jcName) {
-      // Map the job type codes to readable names
-      const jobTypeNames = {
-        "IT_SOFTWARE": "IT & Phần mềm",
-        "FINANCE_BANKING": "Tài chính & Ngân hàng",
-        "MARKETING": "Marketing",
-        "SALES": "Bán hàng",
-        "CUSTOMER_SERVICE": "Dịch vụ khách hàng",
-        "ADMINISTRATION": "Hành chính",
-        "HUMAN_RESOURCES": "Nhân sự",
-        "ACCOUNTING": "Kế toán",
-        "ENGINEERING": "Kỹ thuật",
-        "MANUFACTURING": "Sản xuất",
-        "OTHER": "Khác"
-      };
-      
-      const displayName = jobTypeNames[activeFilters.jcName] || activeFilters.jcName;
-      
       badges.push(
         <Badge className="filter-badge me-2 mb-2" key="jcName">
-          Loại công việc: {displayName}
+          Danh mục: {activeFilters.jcName}
         </Badge>
       );
     }
@@ -355,6 +397,14 @@ const JobList = ({ employerOnly }) => {
       badges.push(
         <Badge className="filter-badge me-2 mb-2" key="postDate">
           Từ ngày: {new Date(activeFilters.postDate).toLocaleDateString('vi-VN')}
+        </Badge>
+      );
+    }
+    
+    if (activeFilters.jobStatus) {
+      badges.push(
+        <Badge className="filter-badge me-2 mb-2" key="jobStatus">
+          Trạng thái: {activeFilters.jobStatus}
         </Badge>
       );
     }
@@ -522,6 +572,24 @@ const JobList = ({ employerOnly }) => {
     );
   };
 
+  // Render login message when user is not authenticated
+  const renderLoginMessage = () => {
+    return (
+      <div className="text-center my-5 py-5">
+        <div className="login-required-message">
+          <FaLock className="lock-icon mb-4" />
+          <h3>Đăng nhập để tiếp tục</h3>
+          <p className="text-muted mb-4">Vui lòng đăng nhập để xem danh sách công việc và tìm kiếm</p>
+          <Link to="/login">
+            <Button className="btn-job-primary px-4 py-2">
+              Đăng nhập ngay
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <Container className="mt-4">
       <Row className="mb-3">
@@ -538,62 +606,68 @@ const JobList = ({ employerOnly }) => {
         </Col>
       </Row>
 
-      <Row className="mb-4">
-        <Col md={8}>
-          <SearchBar onSearch={handleSearch} />
-        </Col>
-        <Col md={4} className="d-flex justify-content-end">
-          <Button 
-            className="btn-job-outline d-flex align-items-center"
-            onClick={() => setShowFilterModal(true)}
-          >
-            <FaFilter className="me-2" /> Lọc công việc
-          </Button>
-        </Col>
-      </Row>
-
-      {/* Active filter badges */}
-      {Object.keys(activeFilters).length > 0 && (
-        <Row className="mb-3">
-          <Col>
-            <div className="d-flex flex-wrap align-items-center">
-              <span className="me-2">Lọc theo:</span>
-              {renderFilterBadges()}
-              <Button 
-                variant="outline-secondary" 
-                size="sm" 
-                onClick={clearFilters}
-              >
-                Xóa bộ lọc
-              </Button>
-            </div>
-          </Col>
-        </Row>
-      )}
-
-      {error && <Alert variant="danger">{error}</Alert>}
-      {successMessage && <Alert variant="success">{successMessage}</Alert>}
-
-      {loading ? (
-        <div className="text-center">
-          <p>Đang tải dữ liệu...</p>
-        </div>
-      ) : jobs.length === 0 ? (
-        <Alert variant="info">
-          {isMyJobsPage
-            ? "Bạn chưa đăng tuyển công việc nào. Tạo công việc mới để bắt đầu."
-            : "Không tìm thấy công việc nào."}
-        </Alert>
+      {!isAuthenticated && !isMyJobsPage ? (
+        renderLoginMessage()
       ) : (
-        renderJobCards()
-      )}
+        <>
+          <Row className="mb-4">
+            <Col md={8}>
+              <SearchBar onSearch={handleSearch} />
+            </Col>
+            <Col md={4} className="d-flex justify-content-end">
+              <Button 
+                className="btn-job-outline d-flex align-items-center"
+                onClick={() => setShowFilterModal(true)}
+              >
+                <FaFilter className="me-2" /> Lọc công việc
+              </Button>
+            </Col>
+          </Row>
 
-      {/* Filter Modal */}
-      <FilterModal 
-        show={showFilterModal} 
-        onHide={() => setShowFilterModal(false)} 
-        onFilter={handleFilter}
-      />
+          {/* Active filter badges */}
+          {Object.keys(activeFilters).length > 0 && (
+            <Row className="mb-3">
+              <Col>
+                <div className="d-flex flex-wrap align-items-center">
+                  <span className="me-2">Lọc theo:</span>
+                  {renderFilterBadges()}
+                  <Button 
+                    variant="outline-secondary" 
+                    size="sm" 
+                    onClick={clearFilters}
+                  >
+                    Xóa bộ lọc
+                  </Button>
+                </div>
+              </Col>
+            </Row>
+          )}
+
+          {error && <Alert variant="danger">{error}</Alert>}
+          {successMessage && <Alert variant="success">{successMessage}</Alert>}
+
+          {loading ? (
+            <div className="text-center">
+              <p>Đang tải dữ liệu...</p>
+            </div>
+          ) : jobs.length === 0 ? (
+            <Alert variant="info">
+              {isMyJobsPage
+                ? "Bạn chưa đăng tuyển công việc nào. Tạo công việc mới để bắt đầu."
+                : "Không tìm thấy công việc nào. Vui lòng sử dụng tính năng tìm kiếm."}
+            </Alert>
+          ) : (
+            renderJobCards()
+          )}
+
+          {/* Filter Modal */}
+          <FilterModal 
+            show={showFilterModal} 
+            onHide={() => setShowFilterModal(false)} 
+            onFilter={handleFilter}
+          />
+        </>
+      )}
     </Container>
   );
 };

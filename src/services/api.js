@@ -95,17 +95,30 @@ export const authService = {
   },
 };
 
-// Job Service - for general job operations
+// Job Service - for job related endpoints
 export const jobService = {
   // Public operations (no auth required)
-  getAllJobs: () => apiClient.get("/jobs"),
-  
+  getAllJobs: () => {
+    console.log("getAllJobs function is temporarily disabled");
+    return { data: [] };
+    // Original implementation commented out:
+    // return apiClient.get("/jobs");
+  },
+
+  // Get job by ID
   getJobById: async (id) => {
     try {
       // Try server-side fetch first
       return await apiClient.get(`/jobs/${id}`);
     } catch (error) {
-      // If we get 403, fallback to client-side search
+      // Check if user is authenticated before trying fallback
+      const isAuthenticated = localStorage.getItem('token') !== null;
+      if (!isAuthenticated) {
+        throw new Error("Authentication required to view job details");
+      }
+      
+      // If we get 403, fallback to client-side search - but this is commented out for now
+      /*
       if (error.response && error.response.status === 403) {
         console.log("Job detail API requires authentication, falling back to client-side search");
         const response = await apiClient.get("/jobs");
@@ -121,6 +134,9 @@ export const jobService = {
         
         return { data: job };
       }
+      */
+      
+      // Just propagate the error without fallback search
       throw error;
     }
   },
@@ -157,26 +173,40 @@ export const jobService = {
       // Add debugging
       console.log("filterJobs called with:", filters);
       
-      // Create a simplified payload to match backend expectations
+      // Create payload with proper string types to prevent Integer/String casting errors
       const payload = {
-        action: filters.action || "get",
-        sortOrder: filters.sortOrder || "DESC",
-        salaryFrom: filters.salaryFrom || 0,
-        salaryTo: filters.salaryTo || 99999999999999,
-        jcName: filters.jcName || "",
-        filter: true
+        action: "get",
+        sortOrder: "DESC"
       };
       
-      // If there's a post date, include it
+      // Add optional parameters only if they have values - convert numbers to strings
+      if (filters.salaryFrom !== undefined) {
+        payload.salaryFrom = String(filters.salaryFrom);
+      }
+      
+      if (filters.salaryTo !== undefined) {
+        payload.salaryTo = String(filters.salaryTo);
+      }
+      
+      // Include post date if provided
       if (filters.postDate) {
         payload.postDate = filters.postDate;
       }
       
+      // Include jcName if provided - ensure it's a string
+      if (filters.jcName && filters.jcName !== "") {
+        payload.jcName = String(filters.jcName);
+      }
+      
+      // Set filter flag as a string "0" or "1"
+      payload.filter = filters.filter ? "1" : "0";
+      
       console.log("Sending job filter to API:", payload);
+      console.log("Payload gửi đi:", JSON.stringify(payload, null, 2));
       
       try {
-        // Try server-side filtering first
-        const response = await apiClient.post("/employers/jobs/search-by-salary-date", payload);
+        // Use the same endpoint as btl2-1.5b
+        const response = await authApiClient.post("/employers/jobs/search-by-salary-date", payload);
         console.log("Server filtering successful:", response.data?.length || 0, "jobs found");
         return response;
       } catch (serverError) {
@@ -184,14 +214,22 @@ export const jobService = {
         console.error("Server filtering failed:", serverError.message);
         console.error("Detailed error:", serverError.response?.data || "No detailed error");
         
-        // If we get a 500 error (missing stored procedure), fall back to client-side
-        console.log("Falling back to client-side filtering");
-        throw serverError; // Re-throw to trigger the fallback
+        // Try with public API client as fallback
+        console.log("Trying with public API client");
+        try {
+          const publicResponse = await apiClient.post("/employers/jobs/search-by-salary-date", payload);
+          return publicResponse;
+        } catch (publicError) {
+          console.error("Public API filtering failed:", publicError.message);
+          // Fall back to client-side filtering
+          console.log("Falling back to client-side filtering");
+          throw publicError;
+        }
       }
     } catch (error) {
       console.error("Filter API error:", error);
       
-      // Always fallback to client-side filtering
+      // Fallback to client-side filtering
       console.log("Executing client-side filtering");
       const response = await apiClient.get("/jobs");
       
@@ -215,107 +253,24 @@ export const employerService = {
   getMyJobs: (params = {}) => {
     console.log("getMyJobs called with params:", params);
 
-    // Handle keyword search
-    if (params.keyword) {
-      console.log("Keyword search in getMyJobs:", params.keyword);
-      
-      // Create a simplified payload for keyword search
-      const payload = {
-        action: "search",
-        jcName: params.keyword,
-        sortOrder: params.sortOrder || "DESC"
-      };
-      
-      console.log("Calling keyword search API with payload:", payload);
-      
-      // Try server-side keyword search with error handling
-      return authApiClient.post("/employers/jobs/search-by-salary-date", payload)
-        .catch(async error => {
-          console.error("API error in keyword search:", error.message);
+    // Always get all jobs from the normal endpoint 
+    return authApiClient.get("/employers/my-jobs")
+      .then(response => {
+        console.log(`Fetched ${response.data?.length || 0} jobs from my-jobs endpoint`);
+        let jobs = response.data || [];
+        
+        // If there are filter params, apply them client-side
+        if (params && Object.keys(params).length > 0) {
+          console.log("Applying filters client-side:", params);
           
-          // Fall back to client-side keyword search
-          console.log("Falling back to client-side keyword search");
-          
-          try {
-            // Get all employer jobs and filter by keyword
-            const response = await authApiClient.get("/employers/my-jobs");
-            const allJobs = response.data || [];
-            
-            // Filter jobs by keyword (case-insensitive)
-            const keyword = params.keyword.toLowerCase();
-            const filteredJobs = allJobs.filter(job => 
-              job.jobName?.toLowerCase().includes(keyword) || 
-              job.description?.toLowerCase().includes(keyword) ||
-              job.level?.toLowerCase().includes(keyword) ||
-              job.contractType?.toLowerCase().includes(keyword) ||
-              job.location?.toLowerCase().includes(keyword) ||
-              job.jobType?.toLowerCase().includes(keyword)
-            );
-            
-            console.log("Client-side keyword search results:", filteredJobs.length);
-            return { data: filteredJobs };
-          } catch (fallbackError) {
-            console.error("Fallback keyword search failed:", fallbackError);
-            return { data: [] };
-          }
-        });
-    }
-    
-    // If filter params are provided, use filtering logic
-    else if (params && Object.keys(params).length > 0) {
-      console.log("Using filter params in getMyJobs:", params);
-      
-      // Create a simplified payload with the exact fields the API expects
-      const payload = {
-        action: params.action || "get",
-        sortOrder: params.sortOrder || "DESC",
-        salaryFrom: params.salaryFrom || 0,
-        salaryTo: params.salaryTo || 99999999999999,
-        jcName: params.jcName || "",
-        filter: true
-      };
-      
-      // If there's a post date, include it
-      if (params.postDate) {
-        payload.postDate = params.postDate;
-      }
-      
-      console.log("Calling API with payload:", payload);
-      
-      // Try server-side filtering with proper error handling
-      return authApiClient.post("/employers/jobs/search-by-salary-date", payload)
-        .catch(async error => {
-          console.error("API error in getMyJobs filtering:", error.message);
-          
-          if (error.response && error.response.status === 500) {
-            console.log("Received 500 error. Falling back to client-side filtering of all employer jobs");
-            
-            try {
-              // Get all employer jobs and filter client-side
-              const response = await authApiClient.get("/employers/my-jobs");
-              const allJobs = response.data || [];
-              
-              // Use the common filtering function
-              const filteredJobs = clientSideJobFilter(allJobs, params);
-              console.log("Client-side filtered employer jobs:", filteredJobs.length);
-              
-              return { data: filteredJobs };
-            } catch (fallbackError) {
-              console.error("Even fallback failed:", fallbackError);
-              return { data: [] }; // Last resort empty array
-            }
-          }
-          
-          // For other errors, return empty array
-          return { data: [] };
-        });
-    }
-
-    // Otherwise, get all jobs
-    console.log("Getting all employer jobs without filters");
-    return authApiClient.get("/employers/my-jobs?includeAll=true")
+          jobs = clientSideJobFilter(jobs, params);
+          console.log(`After filtering: ${jobs.length} jobs remain`);
+        }
+        
+        return { data: jobs };
+      })
       .catch(error => {
-        console.error("Error fetching all employer jobs:", error);
+        console.error("Error fetching employer jobs:", error);
         return { data: [] };
       });
   },
@@ -343,10 +298,10 @@ export const employerService = {
     return employerService.getMyJobs(filterParams);
   },
   
-  // Search by keyword
+  // Search by keyword - now using the standalone searchJCByKeyword function
   searchJobsByKeyword: (keyword) => {
-    console.log("searchJobsByKeyword redirecting to getMyJobs for consistent implementation");
-    return employerService.getMyJobs({ keyword });
+    console.log("searchJobsByKeyword using standalone searchJCByKeyword function");
+    return searchJCByKeyword(keyword);
   },
 };
 
@@ -383,21 +338,91 @@ export const candidateService = {
 const clientSideJobFilter = (jobs, filters) => {
   return jobs.filter(job => {
     // Apply filters based on the filter parameters
-    if (filters.salaryFrom !== undefined && Number(filters.salaryFrom) > 0 && job.salaryFrom < filters.salaryFrom) return false;
-    if (filters.salaryTo !== undefined && Number(filters.salaryTo) > 0 && job.salaryTo > filters.salaryTo) return false;
+    if (filters.salaryFrom !== undefined && job.salaryFrom < filters.salaryFrom) {
+      return false;
+    }
     
-    // Filter by job category name if specified
-    if (filters.jcName && filters.jcName !== "" && job.jobType !== filters.jcName) return false;
+    if (filters.salaryTo !== undefined && job.salaryTo > filters.salaryTo) {
+      return false;
+    }
     
     // Handle post date filtering
     if (filters.postDate) {
       const filterDate = new Date(filters.postDate);
       const jobPostDate = new Date(job.postDate);
-      if (jobPostDate < filterDate) return false;
+      if (jobPostDate < filterDate) {
+        return false;
+      }
     }
     
+    // Handle job status filtering (for onlyOpenJobs)
+    if (filters.jobStatus && job.jobStatus !== filters.jobStatus) {
+      return false;
+    }
+    
+    // If we got here, the job passes all filters
     return true;
   });
+};
+
+// Add a dedicated function for searching by job category keyword
+// This is now a completely standalone function, separate from getMyJobs
+export const searchJCByKeyword = async (keyword) => {
+  const token = localStorage.getItem("token");
+  if (!token) {
+    console.error("searchJCByKeyword: Không tìm thấy token trong localStorage");
+    throw new Error("Không tìm thấy token");
+  }
+  
+  const payload = {
+    action: "search",
+    jcName: keyword,
+  };
+
+  console.log("searchJCByKeyword: Payload:", payload);
+  
+  try {
+    // Use the exact same structure as btl2-1.5b's implementation
+    const res = await axios.post(
+      "http://localhost:8080/api/employers/jobs/search-by-salary-date",
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      }
+    );
+    
+    // Return data in the same format as btl2-1.5b
+    return { data: res.data.data || [] };
+  } catch (error) {
+    console.error("Lỗi tìm kiếm công việc:", error.message);
+    console.error("Chi tiết lỗi:", error.response?.data);
+    
+    // Fall back to client-side search for consistent user experience
+    try {
+      console.log("Đang chuyển sang tìm kiếm cục bộ");
+      const allJobsResponse = await apiClient.get("/jobs");
+      const allJobs = allJobsResponse.data || [];
+      
+      const searchLower = keyword.toLowerCase();
+      const filteredJobs = allJobs.filter(job => 
+        job.jobName?.toLowerCase().includes(searchLower) ||
+        job.description?.toLowerCase().includes(searchLower) ||
+        job.level?.toLowerCase().includes(searchLower) ||
+        job.contractType?.toLowerCase().includes(searchLower) ||
+        job.location?.toLowerCase().includes(searchLower) ||
+        job.jobType?.toLowerCase().includes(searchLower)
+      );
+      
+      console.log(`Tìm thấy ${filteredJobs.length} công việc phù hợp`);
+      return { data: filteredJobs };
+    } catch (fallbackError) {
+      console.error("Tìm kiếm cục bộ thất bại:", fallbackError);
+      return { data: [] };
+    }
+  }
 };
 
 const apiServices = {

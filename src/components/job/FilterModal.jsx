@@ -1,41 +1,47 @@
 import React, { useState } from "react";
 import { Modal, Button, Form, Row, Col } from "react-bootstrap";
-import { FaFilter, FaCalendarAlt, FaBriefcase } from "react-icons/fa";
+import { FaFilter, FaCalendarAlt } from "react-icons/fa";
 import "./Job.css";
 
 const FilterModal = ({ show, onHide, onFilter }) => {
   const [salaryFrom, setSalaryFrom] = useState("");
   const [salaryTo, setSalaryTo] = useState("");
   const [postDate, setPostDate] = useState("");
-  const [jcName, setJcName] = useState("");
+  const [onlyOpenJobs, setOnlyOpenJobs] = useState(false);
 
   const handleFilter = () => {
-    // Create filter parameters object to match exactly the backend schema
+    // Create filter parameters object to match exactly the btl2-1.5b format
     const filterParams = {
-      // Required fields with default values
       action: "get",
-      sortOrder: "DESC",
-      filter: true
+      sortOrder: "DESC"
     };
     
-    // Add salary filters as numbers (0 if empty)
-    filterParams.salaryFrom = salaryFrom === "" ? 0 : Number(salaryFrom);
-    filterParams.salaryTo = salaryTo === "" ? 0 : Number(salaryTo);
-    
-    // Add job category name if specified
-    if (jcName) {
-      filterParams.jcName = jcName;
-    } else {
-      filterParams.jcName = ""; // Set empty string as default
+    // Add filter parameters only if they have values - using the exact same format as btl2-1.5b
+    // Important: Convert numeric values to strings to avoid Integer to String casting errors in backend
+    if (salaryFrom !== "") {
+      filterParams.salaryFrom = String(Number(salaryFrom));
     }
     
-    // Add post date in ISO format if specified
+    if (salaryTo !== "") {
+      filterParams.salaryTo = String(Number(salaryTo));
+    }
+    
+    // Format the date exactly like btl2-1.5b if present
     if (postDate) {
-      const selectedDate = new Date(postDate);
-      filterParams.postDate = selectedDate.toISOString();
+      const formattedDate = `${postDate}T01:37:03.773Z`;
+      filterParams.postDate = formattedDate;
+    }
+    
+    // Set filter flag as a string "0" or "1" instead of boolean
+    filterParams.filter = onlyOpenJobs ? "1" : "0";
+    
+    // If only open jobs is selected, set the job status as a string
+    if (onlyOpenJobs) {
+      filterParams.jobStatus = "Đang mở";
     }
     
     console.log("Sending filter parameters:", filterParams);
+    console.log("Payload gửi đi:", JSON.stringify(filterParams, null, 2));
     
     // Call parent filter function
     onFilter(filterParams);
@@ -48,20 +54,17 @@ const FilterModal = ({ show, onHide, onFilter }) => {
     setSalaryFrom("");
     setSalaryTo("");
     setPostDate("");
-    setJcName("");
+    setOnlyOpenJobs(false);
   };
 
   const handleClearFilter = () => {
     resetForm();
-    // Apply default filters matching the schema
+    // Apply default filters matching the btl2-1.5b schema
     const defaultFilters = {
       action: "get",
       sortOrder: "DESC",
-      salaryFrom: 0,
-      salaryTo: 0,
-      jcName: "",
       postDate: new Date("2000-01-01").toISOString(),
-      filter: true
+      filter: false
     };
     
     console.log("Clearing filters with:", defaultFilters);
@@ -79,30 +82,6 @@ const FilterModal = ({ show, onHide, onFilter }) => {
       
       <Modal.Body className="px-4 py-3">
         <Form>
-          <Form.Group className="mb-3">
-            <Form.Label>
-              <FaBriefcase className="me-2" />
-              Loại công việc
-            </Form.Label>
-            <Form.Select
-              value={jcName}
-              onChange={(e) => setJcName(e.target.value)}
-            >
-              <option value="">Tất cả loại công việc</option>
-              <option value="IT_SOFTWARE">IT & Phần mềm</option>
-              <option value="FINANCE_BANKING">Tài chính & Ngân hàng</option>
-              <option value="MARKETING">Marketing</option>
-              <option value="SALES">Bán hàng</option>
-              <option value="CUSTOMER_SERVICE">Dịch vụ khách hàng</option>
-              <option value="ADMINISTRATION">Hành chính</option>
-              <option value="HUMAN_RESOURCES">Nhân sự</option>
-              <option value="ACCOUNTING">Kế toán</option>
-              <option value="ENGINEERING">Kỹ thuật</option>
-              <option value="MANUFACTURING">Sản xuất</option>
-              <option value="OTHER">Khác</option>
-            </Form.Select>
-          </Form.Group>
-          
           <Row className="mb-3">
             <Col md={6}>
               <Form.Group>
@@ -139,23 +118,34 @@ const FilterModal = ({ show, onHide, onFilter }) => {
               onChange={(e) => setPostDate(e.target.value)}
             />
           </Form.Group>
+          
+          <Form.Group className="mb-3">
+            <Form.Check 
+              type="checkbox"
+              id="open-jobs-check"
+              label="Chỉ hiển thị việc đang mở"
+              checked={onlyOpenJobs}
+              onChange={() => setOnlyOpenJobs(!onlyOpenJobs)}
+              className="filter-checkbox"
+            />
+          </Form.Group>
+          
+          <div className="d-flex justify-content-end mt-4">
+            <Button variant="secondary" onClick={() => {
+              resetForm();
+              onHide();
+            }} className="me-2">
+              Hủy
+            </Button>
+            <Button variant="danger" className="me-2" onClick={handleClearFilter}>
+              Xóa bộ lọc
+            </Button>
+            <Button className="btn-job-primary" onClick={handleFilter}>
+              Áp dụng
+            </Button>
+          </div>
         </Form>
       </Modal.Body>
-      
-      <Modal.Footer className="border-0 px-4 pb-4">
-        <Button variant="secondary" onClick={() => {
-          resetForm();
-          onHide();
-        }}>
-          Hủy
-        </Button>
-        <Button variant="danger" className="mx-2" onClick={handleClearFilter}>
-          Xóa bộ lọc
-        </Button>
-        <Button className="btn-job-primary" onClick={handleFilter}>
-          Áp dụng
-        </Button>
-      </Modal.Footer>
     </Modal>
   );
 };

@@ -59,6 +59,7 @@ const Navigation = () => {
           <Navbar.Toggle aria-controls="basic-navbar-nav" className="mb-2" />
           <Navbar.Collapse id="basic-navbar-nav" className="w-100">
             <Nav className="flex-column w-100">
+              {/* Public job link is commented out
               <Nav.Link 
                 as={Link} 
                 to="/jobs" 
@@ -67,6 +68,7 @@ const Navigation = () => {
               >
                 Công việc
               </Nav.Link>
+              */}
 
               {isAuthenticated && currentUser?.userType === "EMPLOYER" && (
                 <>
@@ -98,14 +100,24 @@ const Navigation = () => {
               )}
 
               {isAuthenticated && currentUser?.userType === "CANDIDATE" && (
-                <Nav.Link 
-                  as={Link} 
-                  to="/applications" 
-                  className={activeLink === "applications" ? "active" : ""}
-                  onClick={() => setActiveLink("applications")}
-                >
-                  Đơn ứng tuyển của tôi
-                </Nav.Link>
+                <>
+                  <Nav.Link 
+                    as={Link} 
+                    to="/jobs" 
+                    className={activeLink === "jobs" ? "active" : ""}
+                    onClick={() => setActiveLink("jobs")}
+                  >
+                    Tìm kiếm công việc
+                  </Nav.Link>
+                  <Nav.Link 
+                    as={Link} 
+                    to="/applications" 
+                    className={activeLink === "applications" ? "active" : ""}
+                    onClick={() => setActiveLink("applications")}
+                  >
+                    Đơn ứng tuyển của tôi
+                  </Nav.Link>
+                </>
               )}
               
               <div className="mt-auto"></div>
