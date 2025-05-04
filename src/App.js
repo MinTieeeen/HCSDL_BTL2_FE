@@ -30,6 +30,29 @@ import ApplicationDetail from "./components/application/ApplicationDetail";
 // Layout components
 import Footer from "./components/layout/Footer";
 
+// Landing page component to handle redirection based on auth status
+const LandingPage = () => {
+  const { isAuthenticated, currentUser } = useAuth();
+  
+  if (!isAuthenticated) {
+    // If not authenticated, redirect to login
+    return <Navigate to="/login" replace />;
+  }
+  
+  // If employer, go to employer jobs
+  if (currentUser?.userType === "EMPLOYER") {
+    return <Navigate to="/employer/jobs" replace />;
+  }
+  
+  // If candidate, go to jobs search
+  if (currentUser?.userType === "CANDIDATE") {
+    return <Navigate to="/jobs" replace />;
+  }
+  
+  // Fallback to login if user type is unknown
+  return <Navigate to="/login" replace />;
+};
+
 // Navigation component with authentication
 const Navigation = () => {
   const { currentUser, isAuthenticated, logout } = useAuth();
@@ -166,8 +189,8 @@ function App() {
           <div className="content-container">
             <Container className="mt-4">
               <Routes>
-                {/* Public routes */}
-                <Route path="/" element={<Navigate to="/jobs" replace />} />
+                {/* Update default route to go to employer jobs page */}
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/jobs" element={<JobList />} />
                 <Route path="/jobs/view/:id" element={<JobDetail />} />
                 <Route path="/login" element={<Login />} />
